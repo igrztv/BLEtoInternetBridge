@@ -1,9 +1,12 @@
 package com.example.mishkatoy;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -13,9 +16,18 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
+
+    private BluetoothService s;
+
+    void launchBLEService() {
+        Intent intent = new Intent(this, BluetoothService.class);
+        intent.putExtra("KEY1", "Value to be used by the service");
+        startService(intent);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,8 +40,7 @@ public class MainActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(this, BluetoothService.class);
-                startService(intent);
+                launchBLEService();
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
@@ -45,12 +56,32 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
     }
 
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Bundle bundle = intent.getExtras();
+            if (bundle != null) {
+                String string = bundle.getString(BluetoothService.EGG_RESPONSE);
+                Toast.makeText(MainActivity.this,
+                            "BLEService responded: " + string,
+                            Toast.LENGTH_LONG).show();
+                Log.e("MAIN ACTIVITY", "Broadcast received");
+            }
+        }
+    };
+
+
     @Override
     public void onBackPressed() {
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
         } else {
+            Intent intent = new Intent(this, BluetoothService.class);
+            // add infos for the service which file to download and where to store
+            intent.putExtra(BluetoothService.BLE_REQUEST, "vibrate");
+            // startService(intent);
             super.onBackPressed();
         }
     }

@@ -1,9 +1,11 @@
 package com.example.mishkatoy;
 
-import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.util.Log;
@@ -16,27 +18,40 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+        implements NavigationView.OnNavigationItemSelectedListener, ServiceConnection {
 
-    private BluetoothService s;
+    private BluetoothService s = null;
 
     void launchBLEService() {
+        // Launch service
         Intent intent = new Intent(this, BluetoothService.class);
-        intent.putExtra("KEY1", "Value to be used by the service");
-        startService(intent);
+        bindService(intent, this, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder binder) {
+        BluetoothService.BluetoothBinder b = (BluetoothService.BluetoothBinder) binder;
+        s = b.getService();
+        Toast.makeText(MainActivity.this, "Connected", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        s = null;
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -54,23 +69,33 @@ public class MainActivity extends AppCompatActivity
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
+        final Button button = findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (s != null) {
+                    s.vibrate();
+                    int counter = s.getCounter();
+                    Log.e("BLE Service", "Counter: " + Integer.toString(counter));
+                }
+            }
+        });
     }
 
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Bundle bundle = intent.getExtras();
-            if (bundle != null) {
-                String string = bundle.getString(BluetoothService.EGG_RESPONSE);
-                Toast.makeText(MainActivity.this,
-                            "BLEService responded: " + string,
-                            Toast.LENGTH_LONG).show();
-                Log.e("MAIN ACTIVITY", "Broadcast received");
-            }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (s == null) {
+            Intent intent= new Intent(this, BluetoothService.class);
+            bindService(intent, this, Context.BIND_AUTO_CREATE);
         }
-    };
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unbindService(this);
+    }
 
     @Override
     public void onBackPressed() {
@@ -78,10 +103,6 @@ public class MainActivity extends AppCompatActivity
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
         } else {
-            Intent intent = new Intent(this, BluetoothService.class);
-            // add infos for the service which file to download and where to store
-            intent.putExtra(BluetoothService.BLE_REQUEST, "vibrate");
-            // startService(intent);
             super.onBackPressed();
         }
     }

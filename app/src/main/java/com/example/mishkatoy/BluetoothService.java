@@ -13,7 +13,6 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Set;

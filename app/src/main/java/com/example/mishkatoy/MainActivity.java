@@ -12,7 +12,9 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -28,8 +30,12 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import org.w3c.dom.Text;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -64,6 +70,14 @@ public class MainActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
+            }
+        });
+
+        Button searchButton = findViewById(R.id.button);
+        searchButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
                 if (mBound) {
                     list.clear();
                     list.addAll(mService.getDevices());
@@ -93,18 +107,18 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        // Bind to LocalService
-        Intent intent = new Intent(this, BluetoothService.class);
-        startService(intent);
-        bindBLE();
+        Button singleButton = findViewById(R.id.button4);
+        Button sequenceButton = findViewById(R.id.button7);
+        singleButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) { sendData("single"); }
+        });
+        sequenceButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) { sendData("sequence"); }
+        });
 
         context = getApplicationContext();
-
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(BluetoothDevice.ACTION_FOUND);
-        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
-        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        registerReceiver(receiver, filter);
 
         // Request permissions to scan bluetooth devices
         String perm[] = {Manifest.permission.ACCESS_COARSE_LOCATION};
@@ -117,10 +131,31 @@ public class MainActivity extends AppCompatActivity
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     bluetoothScanAccess = true;
+
+                    IntentFilter filter = new IntentFilter();
+                    filter.addAction(BluetoothDevice.ACTION_FOUND);
+                    filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+                    filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+                    registerReceiver(receiver, filter);
+
+                    Intent intent = new Intent(this, BluetoothService.class);
+                    startService(intent);
+                    bindBLE();
+
                 } else {
+
+                    Toast toast = Toast.makeText(context, "Cannot start bluetooth );", Toast.LENGTH_SHORT);
+                    toast.show();
+
                     bluetoothScanAccess = false;
                 }
             }
+        }
+    }
+
+    public void sendData(String button) {
+        if (button.equals("single")) {
+            mService.sendCommand("single:");
         }
     }
 
@@ -173,6 +208,10 @@ public class MainActivity extends AppCompatActivity
                 bleDeviceList.setAdapter(new ArrayAdapter<BluetoothDevice>(ctx,
                         android.R.layout.simple_list_item_1, list));
                 Log.e("BROADCAST", device.getName());
+            } else if (BluetoothService.MESSAGE_READ.equals(action)) {
+                TextView responce = findViewById(R.id.textView3);
+                String data = intent.getStringExtra("BLE_data");
+                responce.setText(data);
             }
         }
     };

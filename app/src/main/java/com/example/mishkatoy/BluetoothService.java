@@ -10,10 +10,14 @@ import android.bluetooth.le.BluetoothLeScanner;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.util.Log;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
@@ -28,6 +32,13 @@ public class BluetoothService extends Service {
     private final IBinder binder = new LocalBinder();
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket mmSocket;
+    private Handler handler;
+
+    public static final String MESSAGE_READ = "BluetoothMessageRead";
+    public static final String MESSAGE_WRITE = "BluetoothMessageWrite";
+    public static final String MESSAGE_TOAST = "BluetoothMessageToast";
+    private OutputStream mmOutStream;
+    private byte[] mmBuffer = new byte[1024];
 
     private Set<BluetoothDevice> pairedDevices;
 
@@ -58,10 +69,7 @@ public class BluetoothService extends Service {
     public void searchBLE() {
         /*
         BluetoothLeScanner leScanner = bluetoothAdapter.getBluetoothLeScanner();
-        leScanner.startScan();
-
-        scanCallback */
-
+        leScanner.startScan();*/
         if (bluetoothAdapter.startDiscovery()) {
             // activate spinner for best UI expierence
         }
@@ -92,6 +100,9 @@ public class BluetoothService extends Service {
         if (!counterRunning) {
             counterRunning = true;
             new Thread(new Runnable() {
+
+                InputStream mmInStream;
+
                 public void run() {
                     BluetoothSocket tmp = null;
                     try {
@@ -122,11 +133,57 @@ public class BluetoothService extends Service {
                             Log.e("BleutoothSocket", "Could not close the client socket", closeException);
                         }
                     }
+
+                    InputStream tmpIn = null;
+                    OutputStream tmpOut = null;
+
+                    // Get the input and output streams; using temp objects because
+                    // member streams are final.
+                    try {
+                        tmpIn = mmSocket.getInputStream();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error occurred when creating input stream", e);
+                    }
+                    try {
+                        tmpOut = mmSocket.getOutputStream();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error occurred when creating output stream", e);
+                    }
+
+                    mmInStream = tmpIn;
+                    mmOutStream = tmpOut;
+
+                    // Keep listening to the InputStream until an exception occurs.
+                    while (true) {
+                        try {
+                            // Read from the InputStream.
+                            int numBytes = mmInStream.read(mmBuffer);
+                            // Send the obtained bytes to the UI activity.
+                            Intent broadCastIntent = new Intent();
+                            broadCastIntent.setAction(MESSAGE_READ);
+                            broadCastIntent.putExtra("BLE_data", mmBuffer.toString());
+                            sendBroadcast(broadCastIntent);
+                        } catch (IOException e) {
+                            Log.d(TAG, "Input stream was disconnected", e);
+                            break;
+                        }
+                    }
                 }
             }).start();
         }
 
         return true; // == connecting...
+    }
+
+
+    public boolean sendCommand(String cmd) {
+        try {
+            mmOutStream.write(cmd.getBytes());
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "Error occurred when sending data", e);
+            return false;
+        }
     }
 
     public void disconnectBLE() {
@@ -136,18 +193,6 @@ public class BluetoothService extends Service {
         } catch (IOException e) {
             Log.e(TAG, "Could not close the client socket", e);
         }
-    }
-
-    public boolean sendCommand(String cmd) {
-        if (mmSocket.isConnected()) {
-
-        }
-        return false;
-    }
-
-    public String receiveResponse() {
-        String response = "";
-        return response;
     }
 
     public class LocalBinder extends Binder {

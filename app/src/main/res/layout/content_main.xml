@@ -46,26 +46,48 @@
                 android:layout_height="wrap_content"
                 android:text="Single" />
 
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="15dp" />
+
             <SeekBar
                 android:id="@+id/seekBar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="25dp" />
+
             <Button
                 android:id="@+id/button7"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Button" />
+                android:text="Sequence" />
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="15dp" />
 
             <SeekBar
                 android:id="@+id/seekBar2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="15dp" />
+
             <SeekBar
                 android:id="@+id/seekBar3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/textView3"
+                android:layout_width="match_parent"
+                android:layout_height="203dp"
+                android:text="TextView" />
 
         </LinearLayout>
 

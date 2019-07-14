@@ -63,8 +63,12 @@ public class BLEService extends Service {
             UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
     public final static UUID REMOTE_TX_UUID_CHARACTERISTIC =
             UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
+    public final static UUID REMOTE_RX_UUID_CHARACTERISTIC =
+            UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
     public final static UUID NOTIFICATION_DESCRIPTOR =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+
+    BluetoothGattCharacteristic rxRemoteCharacteristic;
 
     public int startBLE() {
         final BluetoothManager bluetoothManager =
@@ -123,12 +127,6 @@ public class BLEService extends Service {
                 broadCastIntent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
                 sendBroadcast(broadCastIntent);
             }
-
-            /*if (result.getDevice().getName().equals("UART Service")) {
-                connectBLE(result.getDevice());
-            }*/
-            // allDevices.add();
-
         }
 
         @Override
@@ -145,6 +143,14 @@ public class BLEService extends Service {
             Log.e("Scan Failed", "Error Code: " + errorCode);
         }
     };
+
+    public void closeBLE() {
+        if (bluetoothGatt == null) {
+            return;
+        }
+        bluetoothGatt.close();
+        bluetoothGatt = null;
+    }
 
     public boolean connectBLE(BluetoothDevice device) {
         stopScanDevices();
@@ -190,6 +196,9 @@ public class BLEService extends Service {
                             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                             gatt.writeDescriptor(descriptor);
                         }
+                        if (REMOTE_RX_UUID_CHARACTERISTIC.equals(gattCharacteristic.getUuid())) {
+                            rxRemoteCharacteristic = gattCharacteristic;
+                        }
                     }
                 }
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
@@ -212,6 +221,8 @@ public class BLEService extends Service {
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt,
                                           BluetoothGattCharacteristic characteristic, int status) {
+            Log.w(TAG, "onCharacteristicWrite: " + characteristic.getValue().toString());
+            Log.w(TAG, "\tstatus: " + status);
         }
 
         @Override
@@ -221,6 +232,15 @@ public class BLEService extends Service {
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
         }
     };
+
+    public boolean writeCharacteristic(String value) {
+        if (bluetoothGatt == null) {
+            return false;
+        }
+        rxRemoteCharacteristic.setValue(value);
+        bluetoothGatt.writeCharacteristic(rxRemoteCharacteristic);
+        return true;
+    }
 
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);

@@ -117,11 +117,11 @@ public class MainActivity extends AppCompatActivity
         Button sequenceButton = findViewById(R.id.button7);
         singleButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) { sendData("single"); }
+            public void onClick(View view) { mService.writeCharacteristic("single"); }
         });
         sequenceButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) { sendData("sequence"); }
+            public void onClick(View view) { mService.writeCharacteristic("sequence"); }
         });
 
         context = getApplicationContext();

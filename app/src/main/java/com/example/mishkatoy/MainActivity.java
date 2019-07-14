@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -38,20 +39,25 @@ import android.widget.Toast;
 import org.w3c.dom.Text;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+
+import static com.example.mishkatoy.BLEService.EXTRA_DATA;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    BluetoothService mService;
+    BLEService mService;
     boolean mBound = false;
     boolean bluetoothScanAccess = false;
     ArrayList<BluetoothDevice> list = new ArrayList<BluetoothDevice>();
+    Set<BluetoothDevice> deviceSet = new HashSet<>();
     static final int MY_PERMISSION_REQUEST_CONSTANT = 1;
 
     void bindBLE() {
         Log.e("MAIN", "onBind");
-        Intent intent = new Intent(this, BluetoothService.class);
+        Intent intent = new Intent(this, BLEService.class);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 
@@ -80,10 +86,10 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View view) {
                 if (mBound) {
                     list.clear();
-                    list.addAll(mService.getDevices());
+                    // list.addAll(mService.getDevices());
                     bleDeviceList.setAdapter(new ArrayAdapter<>(ctx,
                             android.R.layout.simple_list_item_1, list));
-                    mService.searchBLE();
+                    mService.startScanDevices();
                 }
             }
         });
@@ -136,6 +142,9 @@ public class MainActivity extends AppCompatActivity
                     filter.addAction(BluetoothDevice.ACTION_FOUND);
                     filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
                     filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+                    filter.addAction(BLEService.ACTION_BLE_DEVICE_FOUND);
+                    filter.addAction(BLEService.ACTION_GATT_SERVICES_DISCOVERED);
+                    filter.addAction(BLEService.ACTION_DATA_AVAILABLE);
                     registerReceiver(receiver, filter);
 
                     Intent intent = new Intent(this, BluetoothService.class);
@@ -155,7 +164,7 @@ public class MainActivity extends AppCompatActivity
 
     public void sendData(String button) {
         if (button.equals("single")) {
-            mService.sendCommand("single:");
+            // mService.sendCommand("single:");
         }
     }
 
@@ -194,20 +203,36 @@ public class MainActivity extends AppCompatActivity
     // Create a BroadcastReceiver for ACTION_FOUND.
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
-            Log.e("BROADCAST", "onReceive");
             String action = intent.getAction();
+            Log.e("BROADCAST", "onReceive " + action);
             if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(action)) {
                 Log.e("BROADCAST", "ACTION_DISCOVERY_STARTED");
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 Log.e("BROADCAST", "ACTION_DISCOVERY_FINISHED");
             } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                String deviceName = device.getName();
-                String deviceHardwareAddress = device.getAddress(); // MAC address
                 list.add(device);
                 bleDeviceList.setAdapter(new ArrayAdapter<BluetoothDevice>(ctx,
                         android.R.layout.simple_list_item_1, list));
                 Log.e("BROADCAST", device.getName());
+            } else if (BLEService.ACTION_BLE_DEVICE_FOUND.equals(action)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                deviceSet.add(device);
+                if (!list.contains(device)){
+                    list.add(device);
+                }
+                bleDeviceList.setAdapter(new ArrayAdapter<BluetoothDevice>(ctx,
+                        android.R.layout.simple_list_item_1, list));
+                Log.e("BROADCAST", device.getName());
+            } else if (BLEService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+
+            } else if (BLEService.ACTION_DATA_AVAILABLE.equals(action)) {
+                TextView responce = findViewById(R.id.textView3);
+                String data = intent.getStringExtra(BLEService.EXTRA_DATA);
+                if (data != null) {
+                    responce.setText(data + "\n");
+                    Log.e("DATA", data);
+                }
             } else if (BluetoothService.MESSAGE_READ.equals(action)) {
                 TextView responce = findViewById(R.id.textView3);
                 String data = intent.getStringExtra("BLE_data");
@@ -221,7 +246,7 @@ public class MainActivity extends AppCompatActivity
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
             Log.e("MAIN", "onServiceConnected!!!");
-            BluetoothService.LocalBinder binder = (BluetoothService.LocalBinder) service;
+            BLEService.LocalBinder binder = (BLEService.LocalBinder) service;
             mService = binder.getService();
             mBound = true;
             if (mService.startBLE() != 0) {

@@ -32,7 +32,10 @@ import android.view.MenuItem;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,17 +56,22 @@ public class MainActivity extends AppCompatActivity
     boolean bluetoothScanAccess = false;
     ArrayList<BluetoothDevice> list = new ArrayList<BluetoothDevice>();
     Set<BluetoothDevice> deviceSet = new HashSet<>();
-    static final int MY_PERMISSION_REQUEST_CONSTANT = 1;
+    static final int LOCATION_PERMISSION_REQUEST_CONSTANT = 1;
 
-    void bindBLE() {
-        Log.e("MAIN", "onBind");
-        Intent intent = new Intent(this, BLEService.class);
-        bindService(intent, connection, Context.BIND_AUTO_CREATE);
-    }
+    boolean doRepeat = false;
+    boolean doRun = false;
+    int power = 0;
+    int duration = 0;
+    int pause = 0;
 
     Context context;
     ListView bleDeviceList;
     final Context ctx = this;
+    TextView responce;
+    SeekBar powerBar;
+    SeekBar durationBar;
+    SeekBar pauseBar;
+    Switch repeatSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +84,8 @@ public class MainActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
+                doRun = !doRun;
+                mService.writeCharacteristic(DeviceCharacteristics.REMOTE_DO_UUID_CHARACTERISTIC, doRun ? "1":"0");
             }
         });
 
@@ -86,13 +95,14 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View view) {
                 if (mBound) {
                     list.clear();
-                    // list.addAll(mService.getDevices());
                     bleDeviceList.setAdapter(new ArrayAdapter<>(ctx,
                             android.R.layout.simple_list_item_1, list));
                     mService.startScanDevices();
                 }
             }
         });
+
+        responce = findViewById(R.id.textView3);
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -103,7 +113,7 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        bleDeviceList = (ListView) findViewById(R.id.deviceList);
+        bleDeviceList = findViewById(R.id.deviceList);
         bleDeviceList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?>adapter, View v, int position, long id){
@@ -113,59 +123,95 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        Button singleButton = findViewById(R.id.button4);
-        Button sequenceButton = findViewById(R.id.button7);
-        singleButton.setOnClickListener(new View.OnClickListener() {
+        repeatSwitch = findViewById(R.id.repeatSwitch);
+        repeatSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
-            public void onClick(View view) { mService.writeCharacteristic("single"); }
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                doRepeat = isChecked;
+                mService.writeCharacteristic(DeviceCharacteristics.REMOTE_RX_UUID_CHARACTERISTIC, doRepeat ? "1":"0");
+            }
+
         });
-        sequenceButton.setOnClickListener(new View.OnClickListener() {
+
+        powerBar = findViewById(R.id.powerBar);
+        powerBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onClick(View view) { mService.writeCharacteristic("sequence"); }
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                power = progress;
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mService.writeCharacteristic(DeviceCharacteristics.REMOTE_POWER_UUID_CHARACTERISTIC, power + "");
+            }
         });
+
+        durationBar = findViewById(R.id.durationBar);
+        durationBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                duration = progress;
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mService.writeCharacteristic(DeviceCharacteristics.REMOTE_DURATION_UUID_CHARACTERISTIC, duration + "");
+            }
+        });
+
+        pauseBar = findViewById(R.id.pauseBar);
+        pauseBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                pause = progress;
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mService.writeCharacteristic(DeviceCharacteristics.REMOTE_PAUSE_UUID_CHARACTERISTIC, pause + "");
+            }
+        });
+
+        setUIenabled(false);
 
         context = getApplicationContext();
 
         // Request permissions to scan bluetooth devices
         String perm[] = {Manifest.permission.ACCESS_COARSE_LOCATION};
-        ActivityCompat.requestPermissions(this, perm, MY_PERMISSION_REQUEST_CONSTANT);
+        ActivityCompat.requestPermissions(this, perm, LOCATION_PERMISSION_REQUEST_CONSTANT);
     }
 
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case MY_PERMISSION_REQUEST_CONSTANT: {
+            case LOCATION_PERMISSION_REQUEST_CONSTANT: {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     bluetoothScanAccess = true;
-
-                    IntentFilter filter = new IntentFilter();
-                    filter.addAction(BluetoothDevice.ACTION_FOUND);
-                    filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
-                    filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-                    filter.addAction(BLEService.ACTION_BLE_DEVICE_FOUND);
-                    filter.addAction(BLEService.ACTION_GATT_SERVICES_DISCOVERED);
-                    filter.addAction(BLEService.ACTION_DATA_AVAILABLE);
-                    registerReceiver(receiver, filter);
-
-                    Intent intent = new Intent(this, BluetoothService.class);
-                    startService(intent);
-                    bindBLE();
-
+                    registerBroadcatReceiver();
+                    attachToService();
                 } else {
-
                     Toast toast = Toast.makeText(context, "Cannot start bluetooth );", Toast.LENGTH_SHORT);
                     toast.show();
-
                     bluetoothScanAccess = false;
                 }
             }
         }
     }
 
-    public void sendData(String button) {
-        if (button.equals("single")) {
-            // mService.sendCommand("single:");
-        }
+    private void registerBroadcatReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(BluetoothDevice.ACTION_FOUND);
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        filter.addAction(BLEService.ACTION_BLE_DEVICE_FOUND);
+        filter.addAction(BLEService.ACTION_GATT_SERVICES_DISCOVERED);
+        filter.addAction(BLEService.ACTION_DATA_AVAILABLE);
+        filter.addAction(BLEService.ACTION_GATT_CONNECTED);
+        filter.addAction(BLEService.ACTION_GATT_DISCONNECTED);
+        registerReceiver(receiver, filter);
     }
 
     @Override
@@ -200,11 +246,18 @@ public class MainActivity extends AppCompatActivity
         super.onStop();
     }
 
+    public void setUIenabled(boolean state) {
+        repeatSwitch.setEnabled(state);
+        pauseBar.setEnabled(state);
+        durationBar.setEnabled(state);
+        powerBar.setEnabled(state);
+    }
+
     // Create a BroadcastReceiver for ACTION_FOUND.
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            Log.e("BROADCAST", "onReceive " + action);
+            // Log.e("BROADCAST", "onReceive " + action);
             if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(action)) {
                 Log.e("BROADCAST", "ACTION_DISCOVERY_STARTED");
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
@@ -225,24 +278,31 @@ public class MainActivity extends AppCompatActivity
                         android.R.layout.simple_list_item_1, list));
                 Log.e("BROADCAST", device.getName());
             } else if (BLEService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-
+                doRun = false;
+                mService.writeCharacteristic(DeviceCharacteristics.REMOTE_DO_UUID_CHARACTERISTIC, doRun ? "1":"0");
             } else if (BLEService.ACTION_DATA_AVAILABLE.equals(action)) {
-                TextView responce = findViewById(R.id.textView3);
                 String data = intent.getStringExtra(BLEService.EXTRA_DATA);
                 if (data != null) {
                     responce.setText(data + "\n");
-                    Log.e("DATA", data);
+                    // Log.e("DATA", data);
                 }
+            } else if (BLEService.ACTION_GATT_CONNECTED.equals(action)) {
+                setUIenabled(true);
+            } else if (BLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                setUIenabled(false);
             } else if (BluetoothService.MESSAGE_READ.equals(action)) {
-                TextView responce = findViewById(R.id.textView3);
                 String data = intent.getStringExtra("BLE_data");
                 responce.setText(data);
             }
         }
     };
 
-    private ServiceConnection connection = new ServiceConnection() {
+    public void attachToService() {
+        startService(new Intent(this, BluetoothService.class));
+        bindService(new Intent(this, BLEService.class), connection, Context.BIND_AUTO_CREATE);
+    }
 
+    private ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
             Log.e("MAIN", "onServiceConnected!!!");
@@ -254,7 +314,6 @@ public class MainActivity extends AppCompatActivity
                 toast.show();
             }
         }
-
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             Log.e("MAIN", "onServiceDisconnected!!!");

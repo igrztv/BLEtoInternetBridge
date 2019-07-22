@@ -58,15 +58,10 @@ public class BLEService extends Service {
             "com.example.mishkatoy.ble.ACTION_DATA_AVAILABLE";
     public final static String EXTRA_DATA =
             "com.example.mishkatoy.ble.EXTRA_DATA";
-
-    public final static UUID UUID_YOUR_DEVICE_UUID =
-            UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
-    public final static UUID REMOTE_TX_UUID_CHARACTERISTIC =
-            UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
-    public final static UUID REMOTE_RX_UUID_CHARACTERISTIC =
-            UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
     public final static UUID NOTIFICATION_DESCRIPTOR =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+
+    DeviceCharacteristics mishkaDevice = new DeviceCharacteristics();
 
     BluetoothGattCharacteristic rxRemoteCharacteristic;
 
@@ -189,16 +184,27 @@ public class BLEService extends Service {
                     List<BluetoothGattCharacteristic> chara = gattService.getCharacteristics();
                     for (BluetoothGattCharacteristic gattCharacteristic : chara) {
                         Log.w(TAG, "\t\t\tcharacteristic: " + gattCharacteristic.getUuid().toString());
-                        if (REMOTE_TX_UUID_CHARACTERISTIC.equals(gattCharacteristic.getUuid())) {
+                        UUID uuid = gattCharacteristic.getUuid();
+                        int findUUIDinDevice = mishkaDevice.findUUID(uuid, gattCharacteristic);
+                        if (findUUIDinDevice == DeviceCharacteristics.NEED_NOTIFICATION) {
                             gatt.setCharacteristicNotification(gattCharacteristic, true);
                             Log.w(TAG, "\t\t\t\tset notification!");
                             BluetoothGattDescriptor descriptor = gattCharacteristic.getDescriptor(NOTIFICATION_DESCRIPTOR);
                             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                             gatt.writeDescriptor(descriptor);
                         }
-                        if (REMOTE_RX_UUID_CHARACTERISTIC.equals(gattCharacteristic.getUuid())) {
-                            rxRemoteCharacteristic = gattCharacteristic;
+                        if (findUUIDinDevice == DeviceCharacteristics.CHARACTERISTIC_FOUND) {
+                            if (mishkaDevice.getCharacteristic(uuid) == null) {
+                                Log.w(TAG, "\t\t\t\tCharacteristic not set!!!!");
+                            }
+                            Log.w(TAG, "\t\t\t\tCharacteristic found!");
+                        } else {
+                            Log.w(TAG, "\t\t\t\tCharacteristic not found!");
                         }
+
+                        // if (REMOTE_POWER_UUID_CHARACTERISTIC.equals(gattCharacteristic.getUuid())) {
+                        //     rxRemoteCharacteristic = gattCharacteristic;
+                        // }
                     }
                 }
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
@@ -228,18 +234,25 @@ public class BLEService extends Service {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
-            Log.w(TAG, "onCharacteristicChanged: " + characteristic.getValue().toString());
+            // Log.w(TAG, "onCharacteristicChanged: " + characteristic.getValue().toString());
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
         }
     };
 
-    public boolean writeCharacteristic(String value) {
+    public boolean writeCharacteristic(UUID uuid, String value) {
         if (bluetoothGatt == null) {
             return false;
         }
-        rxRemoteCharacteristic.setValue(value);
-        bluetoothGatt.writeCharacteristic(rxRemoteCharacteristic);
-        return true;
+        BluetoothGattCharacteristic chara = mishkaDevice.getCharacteristic(uuid);
+        if (chara != null) {
+            Log.w(TAG, "\tCharacteristic is ok!!!!");
+            chara.setValue(value);
+            bluetoothGatt.writeCharacteristic(chara);
+            return true;
+        } else {
+            Log.w(TAG, "\tCharacteristic is null!!!!");
+        }
+        return false;
     }
 
     private void broadcastUpdate(final String action) {

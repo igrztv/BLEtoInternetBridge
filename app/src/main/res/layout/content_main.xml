@@ -33,63 +33,62 @@
         <ListView
             android:id="@+id/deviceList"
             android:layout_width="match_parent"
-            android:layout_height="174dp" />
+            android:layout_height="279dp">
 
-        <LinearLayout
+        </ListView>
+
+        <Switch
+            android:id="@+id/repeatSwitch"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:text="Repeat" />
 
-            <Button
-                android:id="@+id/button4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Single" />
+        <TextView
+            android:id="@+id/textView4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="Power"
+            android:textAllCaps="false" />
 
-            <Space
-                android:layout_width="match_parent"
-                android:layout_height="15dp" />
+        <SeekBar
+            android:id="@+id/powerBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="255" />
 
-            <SeekBar
-                android:id="@+id/seekBar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="Duration: 0 … 3000 ms"
+            android:textSize="14sp" />
 
-            <Space
-                android:layout_width="match_parent"
-                android:layout_height="25dp" />
+        <SeekBar
+            android:id="@+id/durationBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="3000" />
 
-            <Button
-                android:id="@+id/button7"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Sequence" />
+        <TextView
+            android:id="@+id/textView6"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="Pause: 0 … 1500 ms"
+            android:textSize="14sp" />
 
-            <Space
-                android:layout_width="match_parent"
-                android:layout_height="15dp" />
+        <SeekBar
+            android:id="@+id/pauseBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="1500" />
 
-            <SeekBar
-                android:id="@+id/seekBar2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <Space
-                android:layout_width="match_parent"
-                android:layout_height="15dp" />
-
-            <SeekBar
-                android:id="@+id/seekBar3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <TextView
-                android:id="@+id/textView3"
-                android:layout_width="match_parent"
-                android:layout_height="203dp"
-                android:text="TextView" />
-
-        </LinearLayout>
+        <TextView
+            android:id="@+id/textView3"
+            android:layout_width="match_parent"
+            android:layout_height="59dp" />
 
     </LinearLayout>
 
